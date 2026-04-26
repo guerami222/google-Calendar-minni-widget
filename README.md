@@ -21,4 +21,4 @@ Electron 기반으로 제작됨
 문제가 발생하면 Issues에 재현 방법과 함께 남겨주세요.
 
 ## Author
-Developed by 세강
+Developed by 김세강
