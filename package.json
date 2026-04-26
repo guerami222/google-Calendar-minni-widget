@@ -1,0 +1,56 @@
+{
+  "name": "gcal-widget",
+  "version": "1.0.0",
+  "description": "Tiny always-on-top Google Calendar widget using a private ICS URL",
+  "main": "main.js",
+  "author": "tuna3",
+
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dist": "electron-builder --win"
+  },
+
+  "dependencies": {
+    "node-ical": "^0.20.1",
+    "googleapis": "^144.0.0",
+    "google-auth-library": "^9.14.2"
+  },
+
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^26.8.1"
+  },
+
+  "build": {
+    "appId": "com.gcal.widget",
+    "productName": "GCalWidget",
+
+    "directories": {
+      "output": "dist"
+    },
+
+    "files": [
+      "**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+    ],
+
+    "extraResources": [
+      {
+        "from": "node_modules/electron/dist/ffmpeg.dll",
+        "to": "."
+      }
+    ],
+
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

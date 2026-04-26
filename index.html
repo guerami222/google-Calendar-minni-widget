@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self' https: data: 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src https:;"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>캘린더 위젯</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="app">
+    <div class="titlebar">
+      <div class="title-left">
+        <div id="widgetTitle" class="title">내 일정</div>
+        <div class="subtitle">Google Calendar</div>
+        <div id="status" class="status">불러오는 중...</div>
+      </div>
+
+      <div class="title-right">
+        <button id="minBtn" class="icon-btn" title="최소화">—</button>
+        <button id="pinBtn" class="icon-btn" title="항상 위 고정">📌</button>
+        <button id="closeBtn" class="icon-btn" title="닫기">✕</button>
+
+        <div class="button-spacer"></div>
+
+        <button id="addEventBtn" class="icon-btn" title="일정 추가">＋</button>
+        <button id="settingsBtn" class="icon-btn" title="설정">⚙</button>
+      </div>
+    </div>
+
+
+
+    <div class="calendar-header">
+      <button id="prevMonthBtn" title="이전 달">‹</button>
+      <div id="currentMonthLabel" class="calendar-month-label">2026년 4월</div>
+      <button id="nextMonthBtn" title="다음 달">›</button>
+    </div>
+
+    <div id="calendarWeekdays" class="calendar-weekdays"></div>
+    <div id="calendarGrid" class="calendar-grid"></div>
+
+    <div id="selectedDateLabel" class="selected-date-label">선택한 날짜 일정</div>
+
+    <div id="events" class="events"></div>
+
+    <div id="empty" class="empty hidden">
+      표시할 일정이 없음. 인류는 또 일정을 안 적어놨군.
+    </div>
+
+    <div id="settingsPanel" class="settings hidden">
+      <label>
+        캘린더 제목
+        <input id="titleInput" type="text" placeholder="내 일정" />
+      </label>
+
+
+
+      <label>
+        새로고침 주기(분)
+        <input id="refreshInput" type="number" min="1" max="120" value="15" />
+      </label>
+
+      <label>
+        표시할 일정 수
+        <input id="maxEventsInput" type="number" min="1" max="20" value="8" />
+      </label>
+
+      <label>
+        배경 투명도
+        <input id="opacityInput" type="range" min="35" max="95" value="72" />
+        <span id="opacityValue">72%</span>
+      </label>
+
+<label class="startup-row">
+  <span>시작프로그램 등록</span>
+  <button id="startupBtn" type="button">OFF</button>
+</label>
+
+      <div class="settings-actions">
+<button id="resetSizeBtn" type="button">크기 초기화</button>
+        <button id="saveBtn" class="primary">저장</button>
+        <button id="cancelBtn">취소</button>
+      </div>
+    </div>
+
+    <div id="addEventPanel" class="settings hidden">
+      <label>
+        제목
+        <input id="eventTitleInput" type="text" placeholder="예: 인터뷰" />
+      </label>
+
+      <label>
+        날짜
+        <input id="eventDateInput" type="date" />
+      </label>
+
+      <label>
+        시작
+        <input id="eventStartTimeInput" type="time" />
+      </label>
+
+      <label>
+        종료
+        <input id="eventEndTimeInput" type="time" />
+      </label>
+
+      <label>
+        장소
+        <input id="eventLocationInput" type="text" placeholder="예: 광화문" />
+      </label>
+
+      <label>
+        설명
+        <input id="eventDescInput" type="text" placeholder="메모" />
+      </label>
+<label>
+  색상
+  <div id="eventColorPicker" class="color-picker">
+    <button type="button" class="color-dot selected" data-color-id="" title="기본 색상" style="--dot-color:#29aeea"></button>
+    <button type="button" class="color-dot" data-color-id="11" title="토마토" style="--dot-color:#ef4444"></button>
+    <button type="button" class="color-dot" data-color-id="4" title="플라밍고" style="--dot-color:#ec5f93"></button>
+    <button type="button" class="color-dot" data-color-id="6" title="귤" style="--dot-color:#ff8a1c"></button>
+    <button type="button" class="color-dot" data-color-id="5" title="바나나" style="--dot-color:#ffc21a"></button>
+    <button type="button" class="color-dot" data-color-id="10" title="바질" style="--dot-color:#20c787"></button>
+
+    <button type="button" class="color-dot" data-color-id="2" title="세이지" style="--dot-color:#52c41a"></button>
+    <button type="button" class="color-dot" data-color-id="7" title="피콕" style="--dot-color:#35c9cf"></button>
+    <button type="button" class="color-dot" data-color-id="1" title="라벤더" style="--dot-color:#60a5fa"></button>
+    <button type="button" class="color-dot" data-color-id="9" title="블루베리" style="--dot-color:#3367d6"></button>
+    <button type="button" class="color-dot" data-color-id="3" title="포도" style="--dot-color:#8b5cf6"></button>
+    <button type="button" class="color-dot" data-color-id="8" title="그래파이트" style="--dot-color:#a3a3a3"></button>
+  </div>
+</label>
+
+      <div class="settings-actions">
+        <button id="saveEventBtn" class="primary">추가</button>
+        <button id="cancelEventBtn">취소</button>
+      </div>
+    </div>
+
+<div class="resize-handle"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
