@@ -303,7 +303,12 @@ eventsEl.querySelectorAll(".editable-summary").forEach(summaryEl => {
     input.focus();
     input.select();
 
+    let saved = false; // 중복 실행 방지
+
     async function saveTitle() {
+      if (saved) return;
+      saved = true;
+
       const newTitle = input.value.trim() || "(제목 없음)";
 
       try {
@@ -313,25 +318,39 @@ eventsEl.querySelectorAll(".editable-summary").forEach(summaryEl => {
           summary: newTitle
         });
 
+        // 먼저 UI 반영 (중요)
+        const newEl = document.createElement("div");
+        newEl.className = "summary editable-summary";
+        newEl.dataset.eventId = eventId;
+        newEl.textContent = newTitle;
+
+        input.replaceWith(newEl);
+
+        // 그 다음 동기화
         const latestConfig = await window.widgetAPI.loadConfig();
         await fetchEvents(latestConfig);
+
       } catch (err) {
         console.error(err);
         await fetchEvents(await window.widgetAPI.loadConfig());
       }
     }
 
-    input.addEventListener("keydown", async (e) => {
+    input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        await saveTitle();
+        e.preventDefault(); // 이거 없으면 blur까지 터짐
+        saveTitle();
       }
 
       if (e.key === "Escape") {
-        await fetchEvents(await window.widgetAPI.loadConfig());
+        saved = true;
+        fetchEvents(window.widgetAPI.loadConfig());
       }
     });
 
-    input.addEventListener("blur", saveTitle);
+    input.addEventListener("blur", () => {
+      saveTitle();
+    });
   });
 });
 
@@ -407,21 +426,50 @@ function renderCalendar(items) {
 
   renderEventListForSelectedDate(itemsByDate);
 }
+
 async function fetchEvents(config = {}) {
   const status = document.getElementById("status");
   const eventsEl = document.getElementById("events");
   const emptyEl = document.getElementById("empty");
   const widgetTitle = document.getElementById("widgetTitle");
 
-  if (status) status.textContent = "일정 불러오는 중...";
-  emptyEl?.classList.add("hidden");
+  if (widgetTitle) {
+    widgetTitle.textContent = config.title || "내 일정";
+  }
 
   try {
-    const items = await window.widgetAPI.listEvents();
+    const loggedIn = await window.widgetAPI.getAuthStatus();
 
-    if (widgetTitle) {
-      widgetTitle.textContent = config.title || "내 일정";
+    console.log("fetchEvents 로그인 상태:", loggedIn);
+
+    if (!loggedIn) {
+      latestItems = [];
+      selectedDateKey = getDateKey(new Date());
+      currentMonthDate = new Date();
+
+      renderWeekdays();
+      renderCalendar([]);
+
+      if (status) status.textContent = "로그인 필요";
+
+      if (eventsEl) {
+        eventsEl.innerHTML = `
+          <div class="empty">
+            Google Calendar 로그인이 필요하다.
+          </div>
+        `;
+      }
+
+      emptyEl?.classList.add("hidden");
+
+      requestAnimationFrame(applyEventsHeight);
+      return;
     }
+
+    if (status) status.textContent = "일정 불러오는 중...";
+    emptyEl?.classList.add("hidden");
+
+    const items = await window.widgetAPI.listEvents();
 
     latestItems = items
       .filter(e => e.start)
@@ -464,7 +512,6 @@ function startRefresh(config) {
   fetchEvents(config);
   timer = setInterval(() => fetchEvents(config), (config.refreshMinutes || 15) * 60 * 1000);
 }
-
 async function init() {
   const pinBtn = document.getElementById("pinBtn");
   const addEventBtn = document.getElementById("addEventBtn");
@@ -479,6 +526,9 @@ async function init() {
   const eventLocationInput = document.getElementById("eventLocationInput");
   const eventDescInput = document.getElementById("eventDescInput");
 
+  const loginBtn = document.getElementById("loginBtn");
+  const accountStatus = document.getElementById("accountStatus");
+
   const opacityInput = document.getElementById("opacityInput");
   const opacityValue = document.getElementById("opacityValue");
 
@@ -489,66 +539,19 @@ async function init() {
   const startupBtn = document.getElementById("startupBtn");
   const resetSizeBtn = document.getElementById("resetSizeBtn");
 
-  const colorDots = document.querySelectorAll(".color-dot");
+  const titleInput = document.getElementById("titleInput");
+  const refreshInput = document.getElementById("refreshInput");
+  const maxEventsInput = document.getElementById("maxEventsInput");
 
   const prevMonthBtn = document.getElementById("prevMonthBtn");
   const nextMonthBtn = document.getElementById("nextMonthBtn");
   const minBtn = document.getElementById("minBtn");
   const closeBtn = document.getElementById("closeBtn");
 
-const handle = document.querySelector(".resize-handle");
+  const colorDots = document.querySelectorAll(".color-dot");
+  const handle = document.querySelector(".resize-handle");
 
-handle?.addEventListener("mousedown", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  const startX = e.screenX;
-  const startY = e.screenY;
-  const startWidth = window.outerWidth;
-  const startHeight = window.outerHeight;
-
-function onMove(e) {
-  if (e.buttons !== 1) {
-    stop();
-    return;
-  }
-
-const nextWidth = Math.max(240, startWidth + (e.screenX - startX));
-const nextHeight = Math.max(360, startHeight + (e.screenY - startY));
-
-
-window.widgetAPI.resizeWindow(nextWidth, nextHeight);
-}
-
-  function onMove(e) {
-    if (e.buttons !== 1) {
-      stop();
-      return;
-    }
-
-    const nextWidth = Math.max(280, startWidth + (e.screenX - startX));
-    const nextHeight = Math.max(420, startHeight + (e.screenY - startY));
-
-    window.widgetAPI.resizeWindow(nextWidth, nextHeight);
-  }
-
-  function stop() {
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", stop);
-    window.removeEventListener("blur", stop);
-  }
-
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", stop);
-  window.addEventListener("blur", stop);
-});
-
-
-let config = await window.widgetAPI.loadConfig();
-
-  const titleInput = document.getElementById("titleInput");
-  const refreshInput = document.getElementById("refreshInput");
-  const maxEventsInput = document.getElementById("maxEventsInput");
+  let config = await window.widgetAPI.loadConfig();
 
   if (titleInput) titleInput.value = config.title || "내 일정";
   if (refreshInput) refreshInput.value = config.refreshMinutes || 15;
@@ -566,51 +569,127 @@ let config = await window.widgetAPI.loadConfig();
   }
 
   async function updateStartupButton() {
-    if (!startupBtn) return;
-
-    if (!window.widgetAPI.getStartup) {
-      console.error("getStartup 연결 안 됨");
-      return;
-    }
+    if (!startupBtn || !window.widgetAPI.getStartup) return;
 
     const enabled = await window.widgetAPI.getStartup();
     startupBtn.textContent = enabled ? "ON" : "OFF";
     startupBtn.classList.toggle("primary", enabled);
   }
 
-  colorDots.forEach(dot => {
-    dot.addEventListener("click", () => {
-      colorDots.forEach(d => d.classList.remove("selected"));
-      dot.classList.add("selected");
-      selectedColorId = dot.dataset.colorId;
-    });
+  async function updateLoginButton() {
+    if (!loginBtn || !window.widgetAPI.getAuthStatus) return;
+
+    const loggedIn = await window.widgetAPI.getAuthStatus();
+if (!loggedIn) {
+  return;
+}
+
+    console.log("현재 로그인 상태:", loggedIn);
+
+    loginBtn.textContent = loggedIn ? "로그아웃" : "로그인";
+    loginBtn.classList.toggle("primary", loggedIn);
+
+    if (accountStatus) {
+      accountStatus.textContent = loggedIn
+        ? "Google Calendar 연결됨"
+        : "로그인 필요";
+    }
+  }
+
+  function openAddEventPanel() {
+    settingsPanel?.classList.add("hidden");
+    addEventPanel?.classList.remove("hidden");
+
+    if (selectedDateKey && eventDateInput) {
+      eventDateInput.value = selectedDateKey;
+    }
+  }
+
+  function toggleAddEventPanel() {
+    const willOpen = addEventPanel?.classList.contains("hidden");
+
+    if (willOpen) {
+      openAddEventPanel();
+    } else {
+      addEventPanel?.classList.add("hidden");
+    }
+  }
+
+  handle?.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.screenX;
+    const startY = e.screenY;
+    const startWidth = window.outerWidth;
+    const startHeight = window.outerHeight;
+
+    function onMove(moveEvent) {
+      if (moveEvent.buttons !== 1) {
+        stop();
+        return;
+      }
+
+      const nextWidth = Math.max(240, startWidth + (moveEvent.screenX - startX));
+      const nextHeight = Math.max(360, startHeight + (moveEvent.screenY - startY));
+
+      window.widgetAPI.resizeWindow(nextWidth, nextHeight);
+    }
+
+    function stop() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("blur", stop);
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("blur", stop);
   });
 
-
-  minBtn?.addEventListener("click", () => window.widgetAPI.minimize());
-  closeBtn?.addEventListener("click", () => window.widgetAPI.close());
-
-  opacityInput?.addEventListener("input", () => {
-    const value = Number(opacityInput.value) || 72;
-    document.documentElement.style.setProperty("--app-opacity", String(value / 100));
-    if (opacityValue) opacityValue.textContent = `${value}%`;
+  minBtn?.addEventListener("click", () => {
+    window.widgetAPI.minimize();
   });
 
-  const initialPinned = await window.widgetAPI.getAlwaysOnTop();
-  updatePinButton(initialPinned);
+  closeBtn?.addEventListener("click", () => {
+    window.widgetAPI.close();
+  });
+
+  try {
+    const initialPinned = await window.widgetAPI.getAlwaysOnTop();
+    updatePinButton(initialPinned);
+  } catch (e) {
+    console.error("항상 위 상태 확인 실패:", e);
+  }
 
   pinBtn?.addEventListener("click", async () => {
-    const isPinned = await window.widgetAPI.toggleAlwaysOnTop();
-    updatePinButton(isPinned);
+    try {
+      const isPinned = await window.widgetAPI.toggleAlwaysOnTop();
+      updatePinButton(isPinned);
+    } catch (e) {
+      console.error("항상 위 토글 실패:", e);
+    }
   });
 
-  settingsBtn?.addEventListener("click", () => {
+  settingsBtn?.addEventListener("click", async () => {
     const willOpen = settingsPanel?.classList.contains("hidden");
 
     addEventPanel?.classList.add("hidden");
 
     if (willOpen) {
       settingsPanel?.classList.remove("hidden");
+
+      try {
+        await updateLoginButton();
+      } catch (e) {
+        console.error("설정창 로그인 상태 갱신 실패:", e);
+      }
+
+      try {
+        await updateStartupButton();
+      } catch (e) {
+        console.error("설정창 시작프로그램 상태 갱신 실패:", e);
+      }
     } else {
       settingsPanel?.classList.add("hidden");
     }
@@ -622,6 +701,20 @@ let config = await window.widgetAPI.loadConfig();
 
   resetSizeBtn?.addEventListener("click", async () => {
     await window.widgetAPI.resetSize();
+
+    const defaultOpacity = 72;
+
+    if (opacityInput) opacityInput.value = defaultOpacity;
+    if (opacityValue) opacityValue.textContent = `${defaultOpacity}%`;
+
+    document.documentElement.style.setProperty(
+      "--app-opacity",
+      String(defaultOpacity / 100)
+    );
+
+    config.opacity = defaultOpacity;
+    await window.widgetAPI.saveConfig(config);
+
     requestAnimationFrame(applyEventsHeight);
   });
 
@@ -647,18 +740,68 @@ let config = await window.widgetAPI.loadConfig();
     };
 
     await window.widgetAPI.saveConfig(config);
+
     settingsPanel?.classList.add("hidden");
     selectedDateKey = null;
     startRefresh(config);
   });
 
-prevMonthBtn?.addEventListener("pointerdown", () => {
-  resizing = false;
-});
+  opacityInput?.addEventListener("input", () => {
+    const value = Number(opacityInput.value) || 72;
 
-nextMonthBtn?.addEventListener("pointerdown", () => {
-  resizing = false;
-});
+    document.documentElement.style.setProperty("--app-opacity", String(value / 100));
+
+    if (opacityValue) {
+      opacityValue.textContent = `${value}%`;
+    }
+  });
+
+  loginBtn?.addEventListener("click", async () => {
+    try {
+      const loggedIn = await window.widgetAPI.getAuthStatus();
+
+if (loggedIn) {
+  await window.widgetAPI.logout();
+
+  latestItems = [];
+  selectedDateKey = getDateKey(new Date());
+  currentMonthDate = new Date();
+
+  renderWeekdays();
+  renderCalendar([]);
+
+  const status = document.getElementById("status");
+  const eventsEl = document.getElementById("events");
+
+  if (status) status.textContent = "로그인 필요";
+
+  if (eventsEl) {
+    eventsEl.innerHTML = `
+      <div class="empty">
+        Google Calendar 로그인이 필요하다.
+      </div>
+    `;
+  }
+
+  await updateLoginButton();
+  return;
+}
+
+      const loginOk = await window.widgetAPI.login();
+
+      if (!loginOk) {
+        throw new Error("로그인은 끝났는데 토큰 저장 확인 실패");
+      }
+
+      await updateLoginButton();
+
+      config = await window.widgetAPI.loadConfig();
+      startRefresh(config);
+    } catch (e) {
+      console.error(e);
+      alert(`로그인 처리 실패: ${e.message}`);
+    }
+  });
 
   prevMonthBtn?.addEventListener("click", () => {
     currentMonthDate = new Date(
@@ -666,6 +809,7 @@ nextMonthBtn?.addEventListener("pointerdown", () => {
       currentMonthDate.getMonth() - 1,
       1
     );
+
     renderCalendar(latestItems);
     requestAnimationFrame(applyEventsHeight);
   });
@@ -676,28 +820,23 @@ nextMonthBtn?.addEventListener("pointerdown", () => {
       currentMonthDate.getMonth() + 1,
       1
     );
+
     renderCalendar(latestItems);
     requestAnimationFrame(applyEventsHeight);
   });
 
-  addEventBtn?.addEventListener("click", () => {
-    const willOpen = addEventPanel?.classList.contains("hidden");
-
-    settingsPanel?.classList.add("hidden");
-
-    if (willOpen) {
-      addEventPanel?.classList.remove("hidden");
-
-      if (selectedDateKey && eventDateInput) {
-        eventDateInput.value = selectedDateKey;
-      }
-    } else {
-      addEventPanel?.classList.add("hidden");
-    }
-  });
+  addEventBtn?.addEventListener("click", toggleAddEventPanel);
 
   cancelEventBtn?.addEventListener("click", () => {
     addEventPanel?.classList.add("hidden");
+  });
+
+  colorDots.forEach(dot => {
+    dot.addEventListener("click", () => {
+      colorDots.forEach(d => d.classList.remove("selected"));
+      dot.classList.add("selected");
+      selectedColorId = dot.dataset.colorId || "";
+    });
   });
 
   saveEventBtn?.addEventListener("click", async () => {
@@ -748,8 +887,8 @@ nextMonthBtn?.addEventListener("pointerdown", () => {
 
       addEventPanel?.classList.add("hidden");
 
-      const latestConfig = await window.widgetAPI.loadConfig();
-      await fetchEvents(latestConfig);
+      config = await window.widgetAPI.loadConfig();
+      await fetchEvents(config);
     } catch (e) {
       console.error(e);
       alert(`일정 추가 실패: ${e.message}`);
@@ -757,7 +896,7 @@ nextMonthBtn?.addEventListener("pointerdown", () => {
   });
 
   document.addEventListener("keydown", (e) => {
-    const tag = document.activeElement.tagName;
+    const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     if (!selectedDateKey) return;
 
@@ -772,37 +911,43 @@ nextMonthBtn?.addEventListener("pointerdown", () => {
       selectedDateKey = getDateKey(d);
       currentMonthDate = new Date(d.getFullYear(), d.getMonth(), 1);
       renderCalendar(latestItems);
+      requestAnimationFrame(applyEventsHeight);
     }
 
     if (e.key.toLowerCase() === "t") {
       const today = new Date();
+
       selectedDateKey = getDateKey(today);
       currentMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
+
       renderCalendar(latestItems);
+      requestAnimationFrame(applyEventsHeight);
     }
 
     if (e.key.toLowerCase() === "n") {
-      const willOpen = addEventPanel?.classList.contains("hidden");
-
-      settingsPanel?.classList.add("hidden");
-
-      if (willOpen) {
-        addEventPanel?.classList.remove("hidden");
-
-        if (selectedDateKey && eventDateInput) {
-          eventDateInput.value = selectedDateKey;
-        }
-      } else {
-        addEventPanel?.classList.add("hidden");
-      }
+      toggleAddEventPanel();
     }
   });
 
-  startRefresh(config);
+  renderWeekdays();
 
-  updateStartupButton().catch(err => {
-    console.error("시작프로그램 상태 확인 실패:", err);
-  });
+  try {
+    await updateLoginButton();
+  } catch (e) {
+    console.error("로그인 버튼 상태 갱신 실패:", e);
+  }
+
+  try {
+    await updateStartupButton();
+  } catch (e) {
+    console.error("시작프로그램 상태 확인 실패:", e);
+  }
+
+  try {
+    startRefresh(config);
+  } catch (e) {
+    console.error("일정 불러오기 시작 실패:", e);
+  }
 }
 
 

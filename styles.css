@@ -595,3 +595,34 @@ button.primary {
   padding: 0;
 }
 
+
+.account-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  margin: 8px 0 10px;
+  padding: 9px;
+
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.72);
+  border: 1px solid var(--border-soft);
+}
+
+.account-title {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-status {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+#loginBtn {
+  min-width: 58px;
+  height: 28px;
+  padding: 0 10px;
+}

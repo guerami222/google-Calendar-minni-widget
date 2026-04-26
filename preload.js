@@ -16,4 +16,7 @@ resizeWindow: (x, y) => ipcRenderer.send("resize-window", { width: x, height: y 
 resetSize: () => ipcRenderer.invoke('window:resetSize'),
 getStartup: () => ipcRenderer.invoke('startup:get'),
 setStartup: (enabled) => ipcRenderer.invoke('startup:set', enabled),
+login: () => ipcRenderer.invoke("auth:login"),
+logout: () => ipcRenderer.invoke("auth:logout"),
+getAuthStatus: () => ipcRenderer.invoke("auth:status"),
 });

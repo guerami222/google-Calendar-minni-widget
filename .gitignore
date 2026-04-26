@@ -1,4 +1,11 @@
-node_modules
-dist
+node_modules/
+dist/
+out/
+*.log
+
 credentials.json
-token.json
+google_token.json
+config.json
+window-bounds.json
+
+.env
