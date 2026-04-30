@@ -427,6 +427,21 @@ function renderCalendar(items) {
   renderEventListForSelectedDate(itemsByDate);
 }
 
+syncBtn?.addEventListener("click", async () => {
+  try {
+    syncBtn.disabled = true;
+    syncBtn.textContent = "…";
+
+    const latestConfig = await window.widgetAPI.loadConfig();
+    await fetchEvents(latestConfig);
+  } catch (e) {
+    console.error("수동 동기화 실패:", e);
+    alert(`동기화 실패: ${e.message}`);
+  } finally {
+    syncBtn.disabled = false;
+    syncBtn.textContent = "↻";
+  }
+});
 async function fetchEvents(config = {}) {
   const status = document.getElementById("status");
   const eventsEl = document.getElementById("events");
@@ -548,6 +563,8 @@ async function init() {
   const minBtn = document.getElementById("minBtn");
   const closeBtn = document.getElementById("closeBtn");
 
+const syncBtn = document.getElementById("syncBtn");
+
   const colorDots = document.querySelectorAll(".color-dot");
   const handle = document.querySelector(".resize-handle");
 
@@ -576,25 +593,22 @@ async function init() {
     startupBtn.classList.toggle("primary", enabled);
   }
 
-  async function updateLoginButton() {
-    if (!loginBtn || !window.widgetAPI.getAuthStatus) return;
+async function updateLoginButton() {
+  if (!loginBtn || !window.widgetAPI.getAuthStatus) return;
 
-    const loggedIn = await window.widgetAPI.getAuthStatus();
-if (!loggedIn) {
-  return;
-}
+  const loggedIn = await window.widgetAPI.getAuthStatus();
 
-    console.log("현재 로그인 상태:", loggedIn);
+  console.log("현재 로그인 상태:", loggedIn);
 
-    loginBtn.textContent = loggedIn ? "로그아웃" : "로그인";
-    loginBtn.classList.toggle("primary", loggedIn);
+  loginBtn.textContent = loggedIn ? "로그아웃" : "로그인";
+  loginBtn.classList.toggle("primary", loggedIn);
 
-    if (accountStatus) {
-      accountStatus.textContent = loggedIn
-        ? "Google Calendar 연결됨"
-        : "로그인 필요";
-    }
+  if (accountStatus) {
+    accountStatus.textContent = loggedIn
+      ? "Google Calendar 연결됨"
+      : "로그인 필요";
   }
+} 
 
   function openAddEventPanel() {
     settingsPanel?.classList.add("hidden");

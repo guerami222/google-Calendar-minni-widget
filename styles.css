@@ -139,22 +139,18 @@ button.primary {
 /* 오른쪽 버튼 GRID */
 
 .title-right {
+  margin-left: auto;
+
   display: grid;
   grid-template-columns: repeat(3, 26px);
   grid-template-rows: repeat(2, 26px);
   gap: 4px;
 
   flex: 0 0 auto;
+  justify-content: end;
+
   -webkit-app-region: no-drag;
 }
-
-/* spacer (왼쪽 아래 빈칸) */
-.button-spacer {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-/* 버튼 위치 */
 
 #minBtn {
   grid-column: 1;
@@ -172,6 +168,11 @@ button.primary {
 }
 
 #addEventBtn {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#syncBtn {
   grid-column: 2;
   grid-row: 2;
 }
@@ -180,6 +181,7 @@ button.primary {
   grid-column: 3;
   grid-row: 2;
 }
+
 
 /* 달력 헤더 */
 

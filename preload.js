@@ -5,7 +5,6 @@ contextBridge.exposeInMainWorld('widgetAPI', {
   saveConfig: (config) => ipcRenderer.invoke('config:save', config),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   close: () => ipcRenderer.invoke('window:close'),
-  fetchICS: (icsUrl) => ipcRenderer.invoke('calendar:fetchICS', icsUrl),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('window:toggleAlwaysOnTop'),
   getAlwaysOnTop: () => ipcRenderer.invoke('window:getAlwaysOnTop'),
 createEvent: (payload) => ipcRenderer.invoke('calendar:createEvent', payload),

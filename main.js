@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const { google } = require("googleapis");
 const { OAuth2Client } = require("google-auth-library");
 const crypto = require("crypto");
@@ -28,6 +28,7 @@ const DEFAULT_CONFIG = {
   refreshMinutes: 15,
   maxEvents: 8,
   title: "내 일정",
+  opacity: 72,
 };
 
 function base64UrlEncode(buffer) {
@@ -71,7 +72,17 @@ function ensureConfig() {
 
 function loadConfig() {
   ensureConfig();
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+
+  try {
+    const saved = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+    return {
+      ...DEFAULT_CONFIG,
+      ...saved,
+    };
+  } catch (err) {
+    console.error("설정 불러오기 실패:", err);
+    return DEFAULT_CONFIG;
+  }
 }
 
 function saveConfig(newConfig) {
@@ -98,7 +109,7 @@ function loadSavedBounds() {
 
 function saveBounds() {
   try {
-    if (!mainWindow) return;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
 
     fs.writeFileSync(
       BOUNDS_PATH,
@@ -134,10 +145,52 @@ async function getAuthorizedClient(force = false) {
 
 async function authorizeWithOAuth(creds) {
   return await new Promise((resolve, reject) => {
+    let authWindow = null;
+    let settled = false;
+
+    function safeReject(err) {
+      if (settled) return;
+      settled = true;
+
+      try {
+        server.close();
+      } catch (_) {}
+
+      if (authWindow && !authWindow.isDestroyed()) {
+        authWindow.close();
+      }
+
+      reject(err);
+    }
+
+    function safeResolve(client) {
+      if (settled) return;
+      settled = true;
+
+      try {
+        server.close();
+      } catch (_) {}
+
+      if (authWindow && !authWindow.isDestroyed()) {
+        authWindow.close();
+      }
+
+      resolve(client);
+    }
+
     const server = http.createServer(async (req, res) => {
       try {
         const url = new URL(req.url, "http://127.0.0.1");
         const code = url.searchParams.get("code");
+        const error = url.searchParams.get("error");
+
+        if (error) {
+          res.writeHead(400, {
+            "Content-Type": "text/html; charset=utf-8",
+          });
+          res.end("<h2>인증 취소됨</h2>");
+          throw new Error(`Google 인증 취소됨: ${error}`);
+        }
 
         if (!code) {
           res.writeHead(400, {
@@ -172,42 +225,82 @@ async function authorizeWithOAuth(creds) {
         res.writeHead(200, {
           "Content-Type": "text/html; charset=utf-8",
         });
-        res.end("<h2>인증 완료</h2><p>이 창 닫아도 됨.</p>");
 
-        server.close();
-        resolve(client);
+        res.end(`
+          <!doctype html>
+          <html lang="ko">
+            <head>
+              <meta charset="utf-8" />
+              <title>인증 완료</title>
+            </head>
+            <body>
+              <h2>인증 완료</h2>
+              <p>앱으로 돌아가면 된다.</p>
+            </body>
+          </html>
+        `);
+
+        safeResolve(client);
       } catch (err) {
-        server.close();
-        reject(err);
+        safeReject(err);
       }
     });
 
-    server.on("error", reject);
+    server.on("error", safeReject);
 
     server.listen(0, "127.0.0.1", () => {
-      const port = server.address().port;
-      const redirectUri = `http://127.0.0.1:${port}`;
+      try {
+        const port = server.address().port;
+        const redirectUri = `http://127.0.0.1:${port}`;
 
-      const codeVerifier = base64UrlEncode(crypto.randomBytes(32));
-      const codeChallenge = base64UrlEncode(sha256(codeVerifier));
+        const codeVerifier = base64UrlEncode(crypto.randomBytes(32));
+        const codeChallenge = base64UrlEncode(sha256(codeVerifier));
 
-      server.codeVerifier = codeVerifier;
+        server.codeVerifier = codeVerifier;
 
-      const client = new OAuth2Client({
-        clientId: creds.client_id,
-        clientSecret: creds.client_secret,
-        redirectUri,
-      });
+        const client = new OAuth2Client({
+          clientId: creds.client_id,
+          clientSecret: creds.client_secret,
+          redirectUri,
+        });
 
-      const authUrl = client.generateAuthUrl({
-        access_type: "offline",
-        scope: SCOPES,
-        prompt: "consent",
-        code_challenge_method: "S256",
-        code_challenge: codeChallenge,
-      });
+        const authUrl = client.generateAuthUrl({
+          access_type: "offline",
+          scope: SCOPES,
+          prompt: "consent",
+          code_challenge_method: "S256",
+          code_challenge: codeChallenge,
+        });
 
-      shell.openExternal(authUrl);
+        authWindow = new BrowserWindow({
+          width: 520,
+          height: 720,
+          title: "Google 로그인",
+          parent: mainWindow || undefined,
+          modal: false,
+          show: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        });
+
+        authWindow.loadURL(authUrl);
+
+        authWindow.on("closed", () => {
+          authWindow = null;
+
+          if (!settled) {
+            try {
+              server.close();
+            } catch (_) {}
+
+            reject(new Error("로그인 창이 닫힘"));
+          }
+        });
+      } catch (err) {
+        safeReject(err);
+      }
     });
   });
 }
@@ -507,30 +600,29 @@ function registerIpcHandlers() {
     return await addCalendarEvent(payload);
   });
 
-ipcMain.handle("calendar:createEvent", async (_, payload) => {
-  return await addCalendarEvent(payload);
-});
+  ipcMain.handle("calendar:createEvent", async (_, payload) => {
+    return await addCalendarEvent(payload);
+  });
 
-ipcMain.handle("calendar:delete", async (_, payload) => {
-  return await deleteCalendarEvent(payload);
-});
+  ipcMain.handle("calendar:delete", async (_, payload) => {
+    return await deleteCalendarEvent(payload);
+  });
 
-ipcMain.handle("calendar:deleteEvent", async (_, payload) => {
-  return await deleteCalendarEvent(payload);
-});
+  ipcMain.handle("calendar:deleteEvent", async (_, payload) => {
+    return await deleteCalendarEvent(payload);
+  });
 
-ipcMain.handle("calendar:removeEvent", async (_, payload) => {
-  return await deleteCalendarEvent(payload);
-});
-
+  ipcMain.handle("calendar:removeEvent", async (_, payload) => {
+    return await deleteCalendarEvent(payload);
+  });
 
   ipcMain.handle("calendar:updateTitle", async (_, payload) => {
     return await updateCalendarTitle(payload);
   });
 
-ipcMain.handle("calendar:updateEventTitle", async (_, payload) => {
-  return await updateCalendarTitle(payload);
-});
+  ipcMain.handle("calendar:updateEventTitle", async (_, payload) => {
+    return await updateCalendarTitle(payload);
+  });
 
   ipcMain.on("resize-window", (event, { width, height }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
