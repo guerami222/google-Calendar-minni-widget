@@ -2,6 +2,9 @@
 
 간단한 데스크톱용 구글 캘린더 위젯
 
+<img width="1601" height="982" alt="image" src="https://github.com/user-attachments/assets/036fa183-bee4-4e1d-ae9a-331cef40ae7b" />
+
+
 ## 기능
 - Google Calendar 연동
 - 수동/자동 동기화 
