@@ -35,15 +35,18 @@
       "credentials.json",
       "node_modules/**/*"
     ],
-    "extraResources": [
+    "extraFiles": [
       {
         "from": "node_modules/electron/dist/ffmpeg.dll",
-        "to": "ffmpeg.dll"
+        "to": "."
       }
     ],
     "asarUnpack": [
       "**/*.dll"
     ],
+"asarUnpack": [
+  "**/*.dll"
+],
     "win": {
       "target": "nsis",
       "icon": "icon.ico"
