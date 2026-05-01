@@ -1,56 +1,60 @@
 {
   "name": "gcal-widget",
   "version": "1.0.0",
-  "description": "Tiny always-on-top Google Calendar widget using a private ICS URL",
+  "description": "Tiny always-on-top Google Calendar widget",
   "main": "main.js",
-  "author": "tuna3",
-
+  "author": "gueramii",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
     "dist": "electron-builder --win"
   },
-
   "dependencies": {
-    "node-ical": "^0.20.1",
+    "google-auth-library": "^9.14.2",
     "googleapis": "^144.0.0",
-    "google-auth-library": "^9.14.2"
+    "node-ical": "^0.20.1"
   },
-
   "devDependencies": {
     "electron": "^30.0.0",
     "electron-builder": "^26.8.1"
   },
-
   "build": {
-    "appId": "com.gcal.widget",
-    "productName": "GCalWidget",
-
+    "appId": "com.gueramii.gcalwidget",
+    "productName": "Google Calendar Widget",
     "directories": {
       "output": "dist"
     },
-
     "files": [
-      "**/*",
-      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "package.json",
+      "icon.ico",
+      "credentials.json",
+      "node_modules/**/*"
     ],
-
     "extraResources": [
       {
         "from": "node_modules/electron/dist/ffmpeg.dll",
-        "to": "."
+        "to": "ffmpeg.dll"
       }
     ],
-
+    "asarUnpack": [
+      "**/*.dll"
+    ],
     "win": {
       "target": "nsis",
       "icon": "icon.ico"
     },
-
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Google Calendar Widget"
     }
   }
 }
